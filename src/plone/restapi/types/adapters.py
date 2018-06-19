@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """JsonSchema providers."""
+from plone.autoform.interfaces import WIDGETS_KEY
+
 from plone.app.textfield.interfaces import IRichText
 from zope.component import adapter
 from zope.component import getMultiAdapter
@@ -13,6 +15,7 @@ from zope.schema.interfaces import IBool
 from zope.schema.interfaces import IBytes
 from zope.schema.interfaces import IChoice
 from zope.schema.interfaces import ICollection
+from zope.schema.interfaces import IContextSourceBinder
 from zope.schema.interfaces import IDate
 from zope.schema.interfaces import IDatetime
 from zope.schema.interfaces import IDecimal
@@ -29,7 +32,7 @@ from zope.schema.interfaces import ITuple
 from zope.schema.interfaces import IVocabularyFactory
 
 from plone.restapi.types.interfaces import IJsonSchemaProvider
-from plone.restapi.types.utils import get_fieldsets
+from plone.restapi.types.utils import get_fieldsets, get_tagged_values
 from plone.restapi.types.utils import get_jsonschema_properties
 
 
@@ -248,12 +251,24 @@ class ChoiceJsonSchemaProvider(DefaultJsonSchemaProvider):
         choices = []
         enum = []
         enum_names = []
-        if self.field.vocabularyName:
+        vocabulary = None
+
+        if getattr(self.field, 'vocabularyName', None):
             vocabulary = getUtility(
                 IVocabularyFactory,
                 name=self.field.vocabularyName)(self.context)
-        else:
+        elif getattr(self.field, 'vocabulary', None):
             vocabulary = self.field.vocabulary
+        else:
+            tagged = get_tagged_values([self.field.interface], WIDGETS_KEY)
+            tagged_field_values = tagged.get(self.field.getName(), {})
+            vocab_name = tagged_field_values.get('vocabulary', None)
+            if vocab_name:
+                vocab_fac = getUtility(IVocabularyFactory, name=vocab_name)
+                vocabulary = vocab_fac(self.context)
+
+        if IContextSourceBinder.providedBy(vocabulary):
+            vocabulary = vocabulary(self.context)
 
         if hasattr(vocabulary, '__iter__') and self.should_render_choices:
             for term in vocabulary:
@@ -366,3 +381,9 @@ class DatetimeJsonSchemaProvider(DateJsonSchemaProvider):
 
     def get_widget(self):
         return 'datetime'
+
+
+@adapter(ITuple, Interface, Interface)
+@implementer(IJsonSchemaProvider)
+class SubjectsFieldJsonSchemaProvider(ChoiceJsonSchemaProvider):
+    pass

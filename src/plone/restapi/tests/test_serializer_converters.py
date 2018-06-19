@@ -5,7 +5,6 @@ from datetime import time
 from datetime import timedelta
 from persistent.list import PersistentList
 from persistent.mapping import PersistentMapping
-from plone.app.textfield.value import RichTextValue
 from plone.restapi.serializer.converters import json_compatible
 from plone.restapi.testing import PLONE_RESTAPI_DX_INTEGRATION_TESTING
 from unittest import TestCase
@@ -146,16 +145,16 @@ class TestJsonCompatibleConverters(TestCase):
 
     def test_python_datetime(self):
         value = DateTime('2015/11/23 19:45:55.649027 GMT+3').asdatetime()
-        self.assertEquals(u'2015-11-23T19:45:55+03:00',
+        self.assertEquals(u'2015-11-23T16:45:55+00:00',
                           json_compatible(value))
-        self.assertEquals('"2015-11-23T19:45:55+03:00"',
+        self.assertEquals('"2015-11-23T16:45:55+00:00"',
                           json.dumps(json_compatible(value)))
 
     def test_zope_DateTime(self):
         value = DateTime('2015/11/23 19:45:55.649027 GMT+3')
-        self.assertEquals(u'2015-11-23T19:45:55+03:00',
+        self.assertEquals(u'2015-11-23T16:45:55+00:00',
                           json_compatible(value))
-        self.assertEquals('"2015-11-23T19:45:55+03:00"',
+        self.assertEquals('"2015-11-23T16:45:55+00:00"',
                           json.dumps(json_compatible(value)))
 
     def test_date(self):
@@ -170,15 +169,6 @@ class TestJsonCompatibleConverters(TestCase):
 
     def test_timedelta(self):
         self.assertEquals(9.58, json_compatible(timedelta(seconds=9.58)))
-
-    def test_richtext(self):
-        value = RichTextValue(u'<p>Hallöchen</p>',
-                              mimeType='text/html',
-                              outputMimeType='text/html')
-        self.assertEquals({
-            u'content-type': u'text/html',
-            u'data': u'<p>Hallöchen</p>',
-            u'encoding': u'utf-8'}, json_compatible(value))
 
     def test_broken_relation_value(self):
         self.assertEquals(None, json_compatible(RelationValue(12345)))

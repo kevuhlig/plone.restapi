@@ -20,8 +20,7 @@ if PAM_INSTALLED:
     from plone.app.multilingual.interfaces import ITranslationManager
 
 
-
-@unittest.skipUnless(PAM_INSTALLED, 'plone.app.multilingual is installed by default only in Plone 5')
+@unittest.skipUnless(PAM_INSTALLED, 'plone.app.multilingual is installed by default only in Plone 5')  # NOQA
 class TestTranslationInfo(unittest.TestCase):
 
     layer = PLONE_RESTAPI_DX_PAM_INTEGRATION_TESTING
@@ -44,8 +43,8 @@ class TestTranslationInfo(unittest.TestCase):
             name=u'GET_application_json_@translations')
 
         info = tinfo.reply()
-        self.assertIn('translations', info)
-        self.assertEqual(1, len(info['translations']))
+        self.assertIn('items', info)
+        self.assertEqual(1, len(info['items']))
 
     def test_correct_translation_information(self):
         tinfo = getMultiAdapter(
@@ -53,7 +52,7 @@ class TestTranslationInfo(unittest.TestCase):
             name=u'GET_application_json_@translations')
 
         info = tinfo.reply()
-        tinfo_es = info['translations'][0]
+        tinfo_es = info['items'][0]
         self.assertEqual(
             self.es_content.absolute_url(),
             tinfo_es['@id'])
@@ -61,7 +60,8 @@ class TestTranslationInfo(unittest.TestCase):
             ILanguage(self.es_content).get_language(),
             tinfo_es['language'])
 
-@unittest.skipUnless(PAM_INSTALLED, 'plone.app.multilingual is installed by default only in Plone 5')
+
+@unittest.skipUnless(PAM_INSTALLED, 'plone.app.multilingual is installed by default only in Plone 5')  # NOQA
 class TestLinkContentsAsTranslations(unittest.TestCase):
     layer = PLONE_RESTAPI_DX_PAM_FUNCTIONAL_TESTING
 
@@ -127,7 +127,8 @@ class TestLinkContentsAsTranslations(unittest.TestCase):
         )
         self.assertEqual(400, response.status_code)
 
-@unittest.skipUnless(PAM_INSTALLED, 'plone.app.multilingual is installed by default only in Plone 5')
+
+@unittest.skipUnless(PAM_INSTALLED, 'plone.app.multilingual is installed by default only in Plone 5')  # NOQA
 class TestUnLinkContentTranslations(unittest.TestCase):
     layer = PLONE_RESTAPI_DX_PAM_FUNCTIONAL_TESTING
 

@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
 from datetime import date
 from DateTime import DateTime
+from plone import api
+from plone.app.discussion.interfaces import IDiscussionSettings
 from plone.app.testing import SITE_OWNER_NAME
 from plone.app.testing import SITE_OWNER_PASSWORD
 from plone.app.textfield.value import RichTextValue
 from plone.dexterity.utils import createContentInContainer
+from plone.registry.interfaces import IRegistry
+from plone.restapi.testing import PLONE_RESTAPI_AT_FUNCTIONAL_TESTING
 from plone.restapi.testing import PLONE_RESTAPI_DX_FUNCTIONAL_TESTING
 from plone.restapi.testing import RelativeSession
 from plone.restapi.tests.helpers import result_paths
 from plone.uuid.interfaces import IMutableUUID
 from Products.CMFCore.utils import getToolByName
+from zope.component import getUtility
 
 import transaction
 import unittest
@@ -102,6 +107,32 @@ class TestSearchFunctional(unittest.TestCase):
              u'/plone/folder/other-document'},
             set(result_paths(response.json())))
 
+    def test_search_in_vhm(self):
+        # Install a Virtual Host Monster
+        if 'virtual_hosting' not in self.app.objectIds():
+            # If ZopeLite was imported, we have no default virtual
+            # host monster
+            from Products.SiteAccess.VirtualHostMonster \
+                import manage_addVirtualHostMonster
+            manage_addVirtualHostMonster(self.app, 'virtual_hosting')
+        transaction.commit()
+
+        # we don't get a result if we do not provide the full physical path
+        response = self.api_session.get('/@search?path=/folder',)
+        self.assertSetEqual(set(), set(result_paths(response.json())))
+
+        # If we go through the VHM will will get results if we only use
+        # the part of the path inside the VHM
+        vhm_url = (
+            '%s/VirtualHostBase/http/plone.org/plone/VirtualHostRoot/%s' %
+            (self.app.absolute_url(), '@search?path=/folder'))
+        response = self.api_session.get(vhm_url)
+        self.assertSetEqual(
+            {u'/folder',
+             u'/folder/doc',
+             u'/folder/other-document'},
+            set(result_paths(response.json())))
+
     def test_path_gets_prefilled_if_missing_from_path_query_dict(self):
         response = self.api_session.get('/@search?path.depth=1')
         self.assertSetEqual(
@@ -175,6 +206,40 @@ class TestSearchFunctional(unittest.TestCase):
         self.assertEqual(
             'http://localhost:55001/plone/folder/doc',
             response.json()['items'][0]['@id'])
+
+    def test_full_objects_retrieval_discussion(self):
+        # Allow discussion
+        registry = getUtility(IRegistry)
+        settings = registry.forInterface(IDiscussionSettings, check=False)
+        settings.globally_enabled = True
+        self.doc.allow_discussion = True
+
+        transaction.commit()
+
+        url = '{}/@comments'.format(self.doc.absolute_url())
+        self.api_session.post(url, json={'text': 'comment 1'})
+        transaction.commit()
+
+        query = {'portal_type': 'Discussion Item',
+                 'fullobjects': True}
+        response = self.api_session.get('/@search', params=query)
+
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(len(response.json()['items']), 1)
+
+    def test_full_objects_retrieval_collections(self):
+        self.collection = createContentInContainer(
+            self.folder, u'Collection',
+            id='collection',
+        )
+        transaction.commit()
+
+        query = {'portal_type': 'Collection',
+                 'fullobjects': True}
+        response = self.api_session.get('/@search', params=query)
+
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(len(response.json()['items']), 1)
 
     # ZCTextIndex
 
@@ -435,3 +500,79 @@ class TestSearchFunctional(unittest.TestCase):
             [u'/plone/folder/doc'],
             result_paths(response.json())
         )
+
+
+class TestSearchATFunctional(unittest.TestCase):
+    layer = PLONE_RESTAPI_AT_FUNCTIONAL_TESTING
+
+    def setUp(self):
+        self.app = self.layer['app']
+        self.portal = self.layer['portal']
+        self.portal_url = self.portal.absolute_url()
+        self.request = self.portal.REQUEST
+        self.catalog = getToolByName(self.portal, 'portal_catalog')
+
+        self.api_session = RelativeSession(self.portal_url)
+        self.api_session.headers.update({'Accept': 'application/json'})
+        self.api_session.auth = (SITE_OWNER_NAME, SITE_OWNER_PASSWORD)
+
+        # /plone/folder
+        with api.env.adopt_roles(['Manager']):
+            self.folder = api.content.create(
+                type=u'ATTestFolder',
+                id=u'folder',
+                title=u'Some Folder',
+                container=self.portal,
+            )
+
+            # /plone/folder/doc
+            self.doc = api.content.create(
+                container=self.folder,
+                type=u'ATTestDocument',
+                id='doc',
+                title=u'Lorem Ipsum',
+                start=DateTime(1950, 1, 1, 0, 0),
+                effective=DateTime(1995, 1, 1, 0, 0),
+                expires=DateTime(1999, 1, 1, 0, 0),
+                testIntegerField=42,
+                testLinesField=['Keyword1', 'Keyword2', 'Keyword3'],
+                testBooleanField=True,
+                testTextField=u'<p>Some Text</p>',
+            )
+
+            # /plone/folder/other-document
+            self.doc2 = api.content.create(
+                container=self.folder,
+                type=u'ATTestDocument',
+                id='other-document',
+                title=u'Other Document',
+                description=u'\xdcbersicht',
+                start=DateTime(1975, 1, 1, 0, 0),
+                effective=DateTime(2015, 1, 1, 0, 0),
+                expires=DateTime(2020, 1, 1, 0, 0),
+                testLinesField=['Keyword2', 'Keyword3'],
+                testBooleanField=False,
+            )
+
+            # /plone/doc-outside-folder
+            api.content.create(
+                container=self.portal,
+                type=u'ATTestDocument',
+                id='doc-outside-folder',
+                title=u'Doc outside folder',
+            )
+
+        transaction.commit()
+
+    def test_full_objects_retrieval(self):
+        query = {'SearchableText': 'lorem',
+                 'metadata_fields': ['portal_type', 'review_state'],
+                 'fullobjects': True}
+        response = self.api_session.get('/@search', params=query)
+
+        self.assertEqual(
+            {u'data': u' Some Text ', u'content-type': u'text/plain'},
+            response.json()['items'][0]['testTextField'])
+        self.assertEqual(
+            'http://localhost:55001/plone/folder/doc',
+            response.json()['items'][0]['@id'])

@@ -58,6 +58,9 @@ class ITaggedValuesSchema(model.Schema):
         description=u"",
     )
 
+    another_field = schema.TextLine(title=u"Tagged Values widget params")
+    form.widget('another_field', a_param='some_value')
+
 
 class TestJsonSchemaUtils(TestCase):
 
@@ -169,11 +172,18 @@ class TestTaggedValuesJsonSchemaUtils(TestCase):
             'input',
             jsonschema['properties']['field_mode_input']['mode']
         )
-        # XXX: To be decided if we always return a mode attribute
-        # self.assertEqual(
-        #     'input',
-        #     jsonschema['properties']['field_mode_default']['mode']
-        # )
+
+    def test_get_jsonschema_with_widget_params(self):
+        ttool = getToolByName(self.portal, 'portal_types')
+        jsonschema = get_jsonschema_for_fti(
+            ttool['TaggedDocument'],
+            self.portal,
+            self.request
+        )
+        self.assertEqual(
+            'some_value',
+            jsonschema['properties']['another_field']['a_param']
+        )
 
 
 class TestJsonSchemaProviders(TestCase):
@@ -184,6 +194,18 @@ class TestJsonSchemaProviders(TestCase):
         self.portal = self.layer['portal']
         self.request = self.layer['request']
         self.dummy_vocabulary = SimpleVocabulary(
+            [
+                SimpleTerm(value=u'foo', title=u'Foo'),
+                SimpleTerm(value=u'bar', title=u'Bar')
+            ]
+        )
+
+    from zope.interface import provider
+    from zope.schema.interfaces import IContextSourceBinder
+
+    @provider(IContextSourceBinder)
+    def dummy_source_vocab(self, context):
+        return SimpleVocabulary(
             [
                 SimpleTerm(value=u'foo', title=u'Foo'),
                 SimpleTerm(value=u'bar', title=u'Bar')
@@ -324,6 +346,27 @@ class TestJsonSchemaProviders(TestCase):
             title=u'My field',
             description=u'My great field',
             vocabulary=self.dummy_vocabulary,
+        )
+        adapter = getMultiAdapter((field, self.portal, self.request),
+                                  IJsonSchemaProvider)
+
+        self.assertEqual(
+            {
+                'type': 'string',
+                'title': u'My field',
+                'description': u'My great field',
+                'enum': ['foo', 'bar'],
+                'enumNames': ['Foo', 'Bar'],
+                'choices': [('foo', 'Foo'), ('bar', 'Bar')],
+            },
+            adapter.get_schema()
+        )
+
+    def test_choice_source_vocab(self):
+        field = schema.Choice(
+            title=u'My field',
+            description=u'My great field',
+            source=self.dummy_source_vocab,
         )
         adapter = getMultiAdapter((field, self.portal, self.request),
                                   IJsonSchemaProvider)

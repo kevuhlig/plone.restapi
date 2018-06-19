@@ -9,10 +9,28 @@ from plone.app.textfield.value import RichTextValue
 from plone.dexterity.utils import iterSchemata
 from plone.restapi.interfaces import IFieldDeserializer
 from plone.restapi.testing import PLONE_RESTAPI_DX_INTEGRATION_TESTING
+from pytz import timezone
+
+from plone.restapi.tests.dxtypes import IDXTestDocumentSchema
 from zope.component import getMultiAdapter
+from zope.schema._bootstrapinterfaces import RequiredMissing
 from zope.schema.interfaces import ValidationError
 
 import unittest
+
+
+class RequiredField(object):
+    """Context manager that will make a field required and back to old state.
+    """
+    def __init__(self, field):
+        self.field = field
+        self.old_state = field.required
+
+    def __enter__(self):
+        self.field.required = True
+
+    def __exit__(self, *args, **kwargs):
+        self.field.required = self.old_state
 
 
 class TestDXFieldDeserializer(unittest.TestCase):
@@ -85,6 +103,42 @@ class TestDXFieldDeserializer(unittest.TestCase):
         value = self.deserialize('test_datetime_field',
                                  u'2015-12-20T10:39:54.361+01')
         self.assertEqual(datetime(2015, 12, 20, 9, 39, 54, 361000), value)
+
+    def test_datetime_with_tz_deserialization_keeps_timezone(self):
+        value = self.deserialize('test_datetime_tz_field',
+                                 u'2015-12-20T10:39:54.361+01')
+        self.assertEqual(timezone("Europe/Zurich").localize(
+            datetime(2015, 12, 20, 10, 39, 54, 361000)), value)
+
+    def test_datetime_with_tz_deserialization_converts_timezone(self):
+        value = self.deserialize('test_datetime_tz_field',
+                                 u'2015-12-20T10:39:54.361-04')
+        self.assertEqual(timezone("Europe/Zurich").localize(
+            datetime(2015, 12, 20, 15, 39, 54, 361000)), value)
+
+    def test_datetime_with_tz_deserialization_adds_timezone(self):
+        value = self.deserialize('test_datetime_tz_field',
+                                 u'2015-12-20T10:39:54.361')
+        self.assertEqual(timezone("Europe/Zurich").localize(
+            datetime(2015, 12, 20, 11, 39, 54, 361000)), value)
+
+    def test_datetime_with_tz_deserialization_handles_dst(self):
+        value = self.deserialize('test_datetime_tz_field',
+                                 u'2015-05-20T10:39:54.361+02')
+        self.assertEqual(timezone("Europe/Zurich").localize(
+            datetime(2015, 05, 20, 10, 39, 54, 361000)), value)
+
+    def test_datetime_deserialization_none(self):
+        # Make sure we don't construct a datetime out of nothing
+        value = self.deserialize('test_datetime_field', None)
+        self.assertEqual(value, None)
+
+    def test_datetime_deserialization_required(self):
+        field_name = 'test_datetime_field'
+        field = IDXTestDocumentSchema.get(field_name)
+        with RequiredField(field):
+            with self.assertRaises(RequiredMissing):
+                self.deserialize(field_name, None)
 
     def test_decimal_deserialization_returns_decimal(self):
         value = self.deserialize('test_decimal_field', u'1.1')
@@ -248,6 +302,30 @@ class TestDXFieldDeserializer(unittest.TestCase):
                         'Not a <NamedBlobImage>')
         self.assertTrue(value.data.startswith('GIF89a'))
 
+    def test_namedblobimage_deserialization_fed_with_null_removes_image(self):
+        # null in json translates to None in python.
+        value = self.deserialize('test_namedblobimage_field', None)
+        self.assertFalse(value)
+
+    def test_namedblobfile_deserialization_fed_with_null_removes_file(self):
+        # null in json translates to None in python.
+        value = self.deserialize('test_namedblobfile_field', None)
+        self.assertFalse(value)
+
+    def test_namedblobfile_deserialize_required(self):
+        field_name = 'test_namedblobfile_field'
+        field = IDXTestDocumentSchema.get(field_name)
+        with RequiredField(field):
+            with self.assertRaises(RequiredMissing):
+                self.deserialize(field_name, None)
+
+    def test_namedblobimage_deserialize_required(self):
+        field_name = 'test_namedblobimage_field'
+        field = IDXTestDocumentSchema.get(field_name)
+        with RequiredField(field):
+            with self.assertRaises(RequiredMissing):
+                self.deserialize(field_name, None)
+
     def test_relationchoice_deserialization_from_uid_returns_document(self):
         doc2 = self.portal[self.portal.invokeFactory(
             'DXTestDocument', id='doc2', title='Referenceable Document')]
@@ -339,6 +417,15 @@ class TestDXFieldDeserializer(unittest.TestCase):
                 u'content-type': u'text/plain',
             })
         self.assertEqual(u'Invalid image file', cm.exception.doc())
+
+    def test_namedfield_deserializer_download(self):
+        # Handle when we post back the GET results.
+        # This then has a 'download' key, and not a 'data' key.
+
+        self.deserialize('test_namedfile_field', {
+            u'download': u'some download link',
+            u'content-type': u'text/plain',
+        })
 
     def test_richtextfield_deserializer_validates_value(self):
         with self.assertRaises(ValidationError) as cm:

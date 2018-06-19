@@ -17,6 +17,7 @@ Content-Type: application/json+schema
       "fields": [
         "allow_discussion", 
         "exclude_from_nav", 
+        "id", 
         "table_of_contents"
       ], 
       "id": "settings", 
@@ -91,7 +92,8 @@ Content-Type: application/json+schema
       }, 
       "title": "Contributors", 
       "type": "array", 
-      "uniqueItems": true
+      "uniqueItems": true, 
+      "vocabulary": "plone.app.vocabularies.Users"
     }, 
     "creators": {
       "additionalItems": true, 
@@ -103,7 +105,8 @@ Content-Type: application/json+schema
       }, 
       "title": "Creators", 
       "type": "array", 
-      "uniqueItems": true
+      "uniqueItems": true, 
+      "vocabulary": "plone.app.vocabularies.Users"
     }, 
     "description": {
       "description": "Used in item listings and search results.", 
@@ -125,10 +128,15 @@ Content-Type: application/json+schema
       "type": "boolean"
     }, 
     "expires": {
-      "description": "When this date is reached, the content will nolonger be visible in listings and searches.", 
+      "description": "When this date is reached, the content will no longer be visible in listings and searches.", 
       "title": "Expiration Date", 
       "type": "string", 
       "widget": "datetime"
+    }, 
+    "id": {
+      "description": "This name will be displayed in the URL.", 
+      "title": "Short name", 
+      "type": "string"
     }, 
     "language": {
       "choices": [
@@ -177,7 +185,8 @@ Content-Type: application/json+schema
       }, 
       "title": "Related Items", 
       "type": "array", 
-      "uniqueItems": true
+      "uniqueItems": true, 
+      "vocabulary": "plone.app.vocabularies.Catalog"
     }, 
     "rights": {
       "description": "Copyright statement or other rights information on this item.", 
@@ -187,16 +196,13 @@ Content-Type: application/json+schema
       "widget": "textarea"
     }, 
     "subjects": {
-      "additionalItems": true, 
+      "choices": [], 
       "description": "Tags are commonly used for ad-hoc organization of content.", 
-      "items": {
-        "description": "", 
-        "title": "", 
-        "type": "string"
-      }, 
+      "enum": [], 
+      "enumNames": [], 
       "title": "Tags", 
-      "type": "array", 
-      "uniqueItems": true
+      "type": "string", 
+      "vocabulary": "plone.app.vocabularies.Keywords"
     }, 
     "table_of_contents": {
       "description": "If selected, this will show a table of contents at the top of the page.", 

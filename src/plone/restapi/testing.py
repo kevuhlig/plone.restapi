@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-from Products.CMFCore.utils import getToolByName
-
 # pylint: disable=E1002
 # E1002: Use of super on an old style class
-
 from plone.app.contenttypes.testing import PLONE_APP_CONTENTTYPES_FIXTURE
 from plone.app.i18n.locales.interfaces import IContentLanguages
 from plone.app.i18n.locales.interfaces import IMetadataLanguages
@@ -21,18 +18,20 @@ from plone.app.testing import TEST_USER_ID
 from plone.restapi.tests.dxtypes import INDEXES as DX_TYPES_INDEXES
 from plone.restapi.tests.helpers import add_catalog_indexes
 from plone.testing import z2
+from plone.testing.layer import Layer
 from plone.uuid.interfaces import IUUIDGenerator
+from Products.CMFCore.utils import getToolByName
 from urlparse import urljoin
 from urlparse import urlparse
 from zope.component import getGlobalSiteManager
 from zope.component import getUtility
 from zope.configuration import xmlconfig
 from zope.interface import implements
-import re
 
-import requests
 import collective.MockMailHost
 import pkg_resources
+import re
+import requests
 
 
 try:
@@ -54,9 +53,29 @@ def set_available_languages():
     getUtility(IMetadataLanguages).setAvailableLanguages(enabled_languages)
 
 
+class DateTimeFixture(Layer):
+
+    def setUp(self):
+        tz = 'UTC'
+        # Patch DateTime's timezone for deterministic behavior.
+        from DateTime import DateTime
+        self.DT_orig_localZone = DateTime.localZone
+        DateTime.localZone = lambda cls=None, ltm=None: tz
+        from plone.dexterity import content
+        content.FLOOR_DATE = DateTime(1970, 0)
+        content.CEILING_DATE = DateTime(2500, 0)
+
+    def tearDown(self):
+        from DateTime import DateTime
+        DateTime.localZone = self.DT_orig_localZone
+
+
+DATE_TIME_FIXTURE = DateTimeFixture()
+
+
 class PloneRestApiDXLayer(PloneSandboxLayer):
 
-    defaultBases = (PLONE_APP_CONTENTTYPES_FIXTURE,)
+    defaultBases = (DATE_TIME_FIXTURE, PLONE_APP_CONTENTTYPES_FIXTURE,)
 
     def setUpZope(self, app, configurationContext):
         import plone.restapi
@@ -85,6 +104,9 @@ class PloneRestApiDXLayer(PloneSandboxLayer):
         set_available_languages()
         quickInstallProduct(portal, 'collective.MockMailHost')
         applyProfile(portal, 'collective.MockMailHost:default')
+        states = portal.portal_workflow['simple_publication_workflow'].states
+        states['published'].title = u'Published with accent é'.encode('utf8')
+
 
 PLONE_RESTAPI_DX_FIXTURE = PloneRestApiDXLayer()
 PLONE_RESTAPI_DX_INTEGRATION_TESTING = IntegrationTesting(
@@ -98,7 +120,8 @@ PLONE_RESTAPI_DX_FUNCTIONAL_TESTING = FunctionalTesting(
 
 
 class PloneRestApiDXPAMLayer(PloneSandboxLayer):
-    defaultBases = (PLONE_APP_CONTENTTYPES_FIXTURE,)
+
+    defaultBases = (DATE_TIME_FIXTURE, PLONE_APP_CONTENTTYPES_FIXTURE,)
 
     def setUpZope(self, app, configurationContext):
         import plone.restapi
@@ -123,13 +146,14 @@ class PloneRestApiDXPAMLayer(PloneSandboxLayer):
         language_tool = getToolByName(portal, 'portal_languages')
         language_tool.addSupportedLanguage('en')
         language_tool.addSupportedLanguage('es')
-        if portal.portal_setup.profileExists(
-                'plone.app.multilingual:default'):            
+        if portal.portal_setup.profileExists('plone.app.multilingual:default'):
             applyProfile(portal, 'plone.app.multilingual:default')
         applyProfile(portal, 'plone.restapi:default')
         applyProfile(portal, 'plone.restapi:testing')
         add_catalog_indexes(portal, DX_TYPES_INDEXES)
         set_available_languages()
+        states = portal.portal_workflow['simple_publication_workflow'].states
+        states['published'].title = u'Published with accent é'.encode('utf8')
 
 
 PLONE_RESTAPI_DX_PAM_FIXTURE = PloneRestApiDXPAMLayer()
@@ -145,7 +169,7 @@ PLONE_RESTAPI_DX_PAM_FUNCTIONAL_TESTING = FunctionalTesting(
 
 class PloneRestApiATLayer(PloneSandboxLayer):
 
-    defaultBases = (PLONE_FIXTURE,)
+    defaultBases = (DATE_TIME_FIXTURE, PLONE_FIXTURE,)
 
     def setUpZope(self, app, configurationContext):
         import Products.ATContentTypes
@@ -179,6 +203,8 @@ class PloneRestApiATLayer(PloneSandboxLayer):
         applyProfile(portal, 'plone.restapi:testing')
         set_available_languages()
         portal.portal_workflow.setDefaultChain("simple_publication_workflow")
+        states = portal.portal_workflow['simple_publication_workflow'].states
+        states['published'].title = u'Published with accent é'.encode('utf8')
 
 
 PLONE_RESTAPI_AT_FIXTURE = PloneRestApiATLayer()
