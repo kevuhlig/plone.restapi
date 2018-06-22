@@ -5,7 +5,7 @@ from plone.restapi.deserializer import json_body
 from plone.restapi.serializer.converters import json_compatible
 from plone.restapi.services import Service
 from zope.i18n import translate
-from zope.interface import implements
+from zope.interface import implementer
 from zope.publisher.interfaces import IPublishTraverse
 from zope.publisher.interfaces import NotFound
 from zope.interface import alsoProvides
@@ -13,10 +13,10 @@ from zope.interface import alsoProvides
 import plone.protect.interfaces
 
 
+@implementer(IPublishTraverse)
 class WorkflowTransition(Service):
     """Trigger workflow transition
     """
-    implements(IPublishTraverse)
 
     def __init__(self, context, request):
         super(WorkflowTransition, self).__init__(context, request)

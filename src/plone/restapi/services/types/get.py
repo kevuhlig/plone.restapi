@@ -6,14 +6,14 @@ from Products.CMFCore.utils import getToolByName
 from zExceptions import Unauthorized
 from zope.component import getUtility
 from zope.component import getMultiAdapter
-from zope.interface import implements
+from zope.interface import implementer
 from zope.publisher.interfaces import IPublishTraverse
 from zope.schema.interfaces import IVocabularyFactory
 
 
+@implementer(IPublishTraverse)
 class TypesGet(Service):
 
-    implements(IPublishTraverse)
 
     def __init__(self, context, request):
         super(TypesGet, self).__init__(context, request)

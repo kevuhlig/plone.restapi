@@ -15,7 +15,7 @@ from plone.rfc822.interfaces import IPrimaryFieldInfo
 from uuid import uuid4
 from zExceptions import Unauthorized
 from zope.component import queryMultiAdapter
-from zope.interface import implements
+from zope.interface import implementer
 from zope.publisher.interfaces import IPublishTraverse
 from zope.publisher.interfaces import NotFound
 
@@ -121,8 +121,8 @@ class UploadPost(TUSBaseService):
         return super(UploadPost, self).reply()
 
 
+@implementer(IPublishTraverse)
 class UploadFileBase(TUSBaseService):
-    implements(IPublishTraverse)
 
     def __init__(self, context, request):
         super(UploadFileBase, self).__init__(context, request)
@@ -181,10 +181,9 @@ class UploadHead(UploadFileBase):
         return super(UploadHead, self).reply()
 
 
+@implementer(IPublishTraverse)
 class UploadPatch(UploadFileBase):
     """TUS upload endpoint for handling PATCH requests"""
-
-    implements(IPublishTraverse)
 
     def reply(self):
 
