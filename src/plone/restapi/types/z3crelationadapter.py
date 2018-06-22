@@ -23,3 +23,6 @@ class ChoiceslessRelationListSchemaProvider(ListJsonSchemaProvider):
         value_type_adapter.should_render_choices = False
 
         return value_type_adapter.get_schema()
+
+    def get_widget(self):
+        return 'relation'

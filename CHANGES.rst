@@ -4,6 +4,9 @@ Changelog
 2.0.1 (unreleased)
 ------------------
 
+- Add the 'widget' property to the @types endpoint for IRelationList fields.
+  [thet]
+
 - Hide upgrades from the add-ons control panel.
   Fixes `issue 532 <https://github.com/plone/plone.restapi/issues/532>`_.
   [maurits]
