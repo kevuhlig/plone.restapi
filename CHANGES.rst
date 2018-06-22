@@ -4,6 +4,11 @@ Changelog
 2.0.1 (unreleased)
 ------------------
 
+- Fix additional properties on ``ListJsonSchemaProvider``:
+  Change ``uniqueItems`` to ``multiple`` and check the type on the field directly instead the field's value_type.
+  Choice fields now return ``multiple = False``, collection fields ``multiple = True``.
+  [thet]
+
 - Add the 'widget' property to the @types endpoint for IRelationList fields.
   [thet]
 

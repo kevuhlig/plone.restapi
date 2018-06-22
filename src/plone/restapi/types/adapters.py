@@ -210,10 +210,10 @@ class ListJsonSchemaProvider(CollectionJsonSchemaProvider):
 
     def additional(self):
         info = super(ListJsonSchemaProvider, self).additional()
-        if IChoice.providedBy(self.field.value_type):
-            info['uniqueItems'] = True
+        if IChoice.providedBy(self.field):
+            info['multiple'] = False
         else:
-            info['uniqueItems'] = False
+            info['multiple'] = True
 
         return info
 
