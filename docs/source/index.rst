@@ -22,6 +22,7 @@ Contents
    content
    history
    batching
+   addons
    comments
    copymove
    expansion
